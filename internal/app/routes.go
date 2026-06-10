@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/jackc/pgx/v5/pgxpool"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"github.com/user/todo-list/internal/auth"
 	"github.com/user/todo-list/internal/middleware"
@@ -26,6 +27,7 @@ func buildRouter(
 	log *slog.Logger,
 	jwtManager *jwt.Manager,
 	corsOrigins []string,
+	pool *pgxpool.Pool,
 	h handlers,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -46,7 +48,11 @@ func buildRouter(
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
-	r.Get("/readyz", func(w http.ResponseWriter, _ *http.Request) {
+	r.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if err := pool.Ping(r.Context()); err != nil {
+			response.JSON(w, http.StatusServiceUnavailable, map[string]string{"status": "db unavailable"})
+			return
+		}
 		response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 

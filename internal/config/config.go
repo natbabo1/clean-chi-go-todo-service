@@ -59,7 +59,8 @@ func getEnv(key, fallback string) string {
 func mustGetEnv(key string) string {
 	v := os.Getenv(key)
 	if v == "" {
-		panic(fmt.Sprintf("required env var %q is not set", key))
+		fmt.Fprintf(os.Stderr, "required env var %q is not set\n", key)
+		os.Exit(1)
 	}
 	return v
 }

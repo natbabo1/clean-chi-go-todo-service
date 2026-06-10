@@ -45,7 +45,7 @@ func Build(ctx context.Context, cfg *config.Config) (*Server, *slog.Logger, erro
 
 	swaggerDocs.SwaggerInfo.Host = cfg.AppPublicHost
 
-	router := buildRouter(log, jwtManager, cfg.CORSAllowedOrigins, h)
+	router := buildRouter(log, jwtManager, cfg.CORSAllowedOrigins, pool, h)
 	srv := newServer(cfg.AppPort, router)
 
 	return srv, log, nil
