@@ -29,6 +29,17 @@ type Pagination struct {
 	Total int `json:"total"`
 }
 
+type validationErrorBody struct {
+	Code    string            `json:"code"`
+	Message string            `json:"message"`
+	Fields  map[string]string `json:"fields"`
+}
+
+// validationErrorEnvelope is used only as a Swagger schema reference.
+type validationErrorEnvelope struct {
+	Error validationErrorBody `json:"error"`
+}
+
 func JSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -50,11 +61,11 @@ func Error(w http.ResponseWriter, status int, code, message string) {
 func ValidationErrors(w http.ResponseWriter, errs map[string]string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnprocessableEntity)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"error": map[string]any{
-			"code":    "validation_error",
-			"message": "validation failed",
-			"fields":  errs,
+	_ = json.NewEncoder(w).Encode(validationErrorEnvelope{
+		Error: validationErrorBody{
+			Code:    "validation_error",
+			Message: "validation failed",
+			Fields:  errs,
 		},
 	})
 }

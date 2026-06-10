@@ -1,0 +1,441 @@
+basePath: /api/v1
+definitions:
+  github_com_user_todo-list_internal_platform_response.Pagination:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  github_com_user_todo-list_internal_platform_response.envelope:
+    properties:
+      data: {}
+    type: object
+  github_com_user_todo-list_internal_platform_response.errorBody:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  github_com_user_todo-list_internal_platform_response.errorEnvelope:
+    properties:
+      error:
+        $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorBody'
+    type: object
+  github_com_user_todo-list_internal_platform_response.listEnvelope:
+    properties:
+      data: {}
+      pagination:
+        $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.Pagination'
+    type: object
+  github_com_user_todo-list_internal_platform_response.validationErrorBody:
+    properties:
+      code:
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+      message:
+        type: string
+    type: object
+  github_com_user_todo-list_internal_platform_response.validationErrorEnvelope:
+    properties:
+      error:
+        $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.validationErrorBody'
+    type: object
+  github_com_user_todo-list_internal_user.Response:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_auth.LoginInput:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  internal_auth.RegisterInput:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  internal_auth.TokenResponse:
+    properties:
+      access_token:
+        type: string
+      user:
+        $ref: '#/definitions/github_com_user_todo-list_internal_user.Response'
+    type: object
+  internal_todo.CreateInput:
+    properties:
+      description:
+        type: string
+      due_date:
+        type: string
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  internal_todo.Response:
+    properties:
+      completed:
+        type: boolean
+      created_at:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  internal_todo.UpdateInput:
+    properties:
+      completed:
+        type: boolean
+      description:
+        type: string
+      due_date:
+        type: string
+      title:
+        type: string
+    type: object
+  internal_user.Response:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+  description: Production-grade todo list API with JWT authentication.
+  license:
+    name: MIT
+  title: Todo List API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate with email and password
+      parameters:
+      - description: Login payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_auth.TokenResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.validationErrorEnvelope'
+      summary: Login
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: Register payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.RegisterInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_auth.TokenResponse'
+              type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.validationErrorEnvelope'
+      summary: Register
+      tags:
+      - auth
+  /me:
+    get:
+      description: Returns the profile of the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_user.Response'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - users
+  /todos:
+    get:
+      description: Get a paginated list of todos belonging to the authenticated user
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by completed status
+        in: query
+        name: completed
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.listEnvelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/internal_todo.Response'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: List todos
+      tags:
+      - todos
+    post:
+      consumes:
+      - application/json
+      description: Create a new todo for the authenticated user
+      parameters:
+      - description: Todo payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_todo.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_todo.Response'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.validationErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Create todo
+      tags:
+      - todos
+  /todos/{id}:
+    delete:
+      description: Permanently delete a todo
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Delete todo
+      tags:
+      - todos
+    get:
+      description: Get a single todo by ID
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_todo.Response'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get todo
+      tags:
+      - todos
+    patch:
+      consumes:
+      - application/json
+      description: Partially update a todo
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_todo.UpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_todo.Response'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_user_todo-list_internal_platform_response.errorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Update todo
+      tags:
+      - todos
+securityDefinitions:
+  BearerAuth:
+    description: 'Enter: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
