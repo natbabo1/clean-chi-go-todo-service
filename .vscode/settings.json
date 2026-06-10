@@ -1,0 +1,14 @@
+{
+  "go.useLanguageServer": true,
+  "go.toolsManagement.autoUpdate": true,
+  "[go]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "go.testFlags": ["-v", "-race"],
+  "go.delveConfig": {
+    "showGlobalVariables": true
+  }
+}

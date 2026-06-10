@@ -12,6 +12,7 @@ import (
 type Config struct {
 	AppEnv             string
 	AppPort            string
+	AppPublicHost      string // host[:port] served to Swagger UI, e.g. "api.example.com"
 	DatabaseURL        string
 	JWTSecret          string
 	JWTAccessTokenTTL  time.Duration
@@ -34,9 +35,11 @@ func Load() (*Config, error) {
 
 	origins := strings.Split(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000"), ",")
 
+	port := getEnv("APP_PORT", "8080")
 	cfg := &Config{
 		AppEnv:             getEnv("APP_ENV", "development"),
-		AppPort:            getEnv("APP_PORT", "8080"),
+		AppPort:            port,
+		AppPublicHost:      getEnv("APP_PUBLIC_HOST", "localhost:"+port),
 		DatabaseURL:        mustGetEnv("DATABASE_URL"),
 		JWTSecret:          mustGetEnv("JWT_SECRET"),
 		JWTAccessTokenTTL:  ttl,

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	_ "github.com/user/todo-list/docs"
+	swaggerDocs "github.com/user/todo-list/docs"
 	"github.com/user/todo-list/internal/auth"
 	"github.com/user/todo-list/internal/config"
 	"github.com/user/todo-list/internal/platform/database"
@@ -42,6 +42,8 @@ func Build(ctx context.Context, cfg *config.Config) (*Server, *slog.Logger, erro
 		user: user.NewHandler(userSvc),
 		todo: todo.NewHandler(todoSvc, v),
 	}
+
+	swaggerDocs.SwaggerInfo.Host = cfg.AppPublicHost
 
 	router := buildRouter(log, jwtManager, cfg.CORSAllowedOrigins, h)
 	srv := newServer(cfg.AppPort, router)
