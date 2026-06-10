@@ -4,9 +4,11 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
     ports:
-      - "8080:8080"
+      - "8080:8085"
     env_file:
       - ../.env
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/todolist?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
