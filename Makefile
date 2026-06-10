@@ -25,7 +25,7 @@ migrate-down:
 	$(MIGRATE) down
 
 docker-up:
-	docker compose -f deploy/docker-compose.yml up -d --build
+	docker compose -p todolist_backend_sandbox -f deploy/docker-compose.yml up -d --build 
 
 docker-down:
-	docker compose -f deploy/docker-compose.yml down
+	docker compose -p todolist_backend_sandbox -f deploy/docker-compose.yml down -p todolist_backend_sandbox
