@@ -5,7 +5,7 @@
 #
 # Copy this into the SERVICE repo (e.g. as deploy/Dockerfile.migrations) — it
 # needs the migrations/ directory in its build context.
-FROM migrate/migrate:v4
+FROM migrate/migrate:4
 
 # golang-migrate's entrypoint is already `migrate`; CI passes the args
 # (-path /migrations -database $DATABASE_URL up) via the task definition command.
