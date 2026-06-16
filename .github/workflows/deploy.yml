@@ -30,8 +30,8 @@ env:
   ECS_SERVICE: beta-backend # ecs_service_name
   BACKEND_FAMILY: beta-backend # backend_task_family
   MIGRATIONS_FAMILY: beta-migrations # migrations_task_family
-  SUBNETS: "subnet-02504d1e9716b2329,subnet-02dbb7ee944f2154c" # private_subnet_ids, comma-separated
-  SECURITY_GROUP: "sg-0265edd5793e29301" # ecs_service_security_group_id
+  SUBNETS: "subnet-025b622ffb6508e70,subnet-02e872bacc489dafd" # private_subnet_ids, comma-separated
+  SECURITY_GROUP: "sg-062d0baae78e8bfd6" # ecs_service_security_group_id
   # Confirm these match the service repo layout:
   DOCKERFILE: deploy/Dockerfile
   MIGRATIONS_DOCKERFILE: deploy/Dockerfile.migrations
