@@ -1,0 +1,122 @@
+# GitHub Actions deploy pipeline for clean-chi-go-todo-service.
+#
+# COPY THIS to the service repo as `.github/workflows/deploy.yml`.
+# Also copy ci/Dockerfile.migrations into the service repo (see ci/README.md).
+#
+# Flow: OIDC assume CI role -> build+push backend & migrations images ->
+#       run DB migrations as a one-off Fargate task -> roll the ECS service.
+#
+# No long-lived AWS keys: auth is OIDC (id-token) against the role beta created.
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write # required for OIDC
+  contents: read
+
+# ─── Fill these from `terraform -chdir=infra/projects/beta output` ───────────
+# (or set them as GitHub repo Variables and reference vars.* instead)
+env:
+  AWS_REGION: ap-southeast-1
+  AWS_ROLE_ARN: arn:aws:iam::493042495361:role/apps/beta-ci-deploy # ci_deploy_role_arn
+  ECR_BACKEND: "493042495361.dkr.ecr.ap-southeast-1.amazonaws.com/beta-backend" # ecr_backend_url
+  ECR_MIGRATIONS: "493042495361.dkr.ecr.ap-southeast-1.amazonaws.com/beta-migrations" # ecr_migrations_url
+  ECS_CLUSTER: beta-cluster # ecs_cluster_name
+  ECS_SERVICE: beta-backend # ecs_service_name
+  BACKEND_FAMILY: beta-backend # backend_task_family
+  MIGRATIONS_FAMILY: beta-migrations # migrations_task_family
+  SUBNETS: "subnet-02504d1e9716b2329,subnet-02dbb7ee944f2154c" # private_subnet_ids, comma-separated
+  SECURITY_GROUP: "sg-0265edd5793e29301" # ecs_service_security_group_id
+  # Confirm these match the service repo layout:
+  DOCKERFILE: deploy/Dockerfile
+  MIGRATIONS_DOCKERFILE: deploy/Dockerfile.migrations
+  BUILD_CONTEXT: .
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push images
+        id: build
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_SHA::12}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          # Backend app image
+          docker build -f "$DOCKERFILE" -t "$ECR_BACKEND:$TAG" -t "$ECR_BACKEND:latest" "$BUILD_CONTEXT"
+          docker push "$ECR_BACKEND:$TAG"
+          docker push "$ECR_BACKEND:latest"
+
+          # Migrations image (golang-migrate + migrations/)
+          docker build -f "$MIGRATIONS_DOCKERFILE" -t "$ECR_MIGRATIONS:$TAG" -t "$ECR_MIGRATIONS:latest" "$BUILD_CONTEXT"
+          docker push "$ECR_MIGRATIONS:$TAG"
+          docker push "$ECR_MIGRATIONS:latest"
+
+      # Register a new revision of the migrations task def with the fresh image,
+      # then run it once in the private subnets (so it can reach RDS) and fail
+      # the build if migrations exit non-zero.
+      - name: Run database migrations
+        run: |
+          set -euo pipefail
+          IMAGE="$ECR_MIGRATIONS:${{ steps.build.outputs.tag }}"
+
+          NEW_DEF=$(aws ecs describe-task-definition --task-definition "$MIGRATIONS_FAMILY" \
+            --query taskDefinition | jq --arg IMG "$IMAGE" '
+              .containerDefinitions[0].image = $IMG
+              | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)')
+          MIG_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_DEF" \
+            --query taskDefinition.taskDefinitionArn --output text)
+
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition "$MIG_ARN" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUP],assignPublicIp=DISABLED}" \
+            --query 'tasks[0].taskArn' --output text)
+
+          echo "Migration task: $TASK_ARN"
+          aws ecs wait tasks-stopped --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+
+          EXIT=$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "Migration exit code: $EXIT"
+          [ "$EXIT" = "0" ] || { echo "Migrations failed"; exit 1; }
+
+      # Register a new backend revision with the fresh image and roll the service.
+      - name: Deploy backend service
+        run: |
+          set -euo pipefail
+          IMAGE="$ECR_BACKEND:${{ steps.build.outputs.tag }}"
+
+          NEW_DEF=$(aws ecs describe-task-definition --task-definition "$BACKEND_FAMILY" \
+            --query taskDefinition | jq --arg IMG "$IMAGE" '
+              .containerDefinitions[0].image = $IMG
+              | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)')
+          APP_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_DEF" \
+            --query taskDefinition.taskDefinitionArn --output text)
+
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "$APP_ARN" \
+            --force-new-deployment >/dev/null
+
+          echo "Waiting for service to stabilize..."
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"

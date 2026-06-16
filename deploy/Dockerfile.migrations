@@ -1,0 +1,12 @@
+# Self-contained migration image: golang-migrate CLI + the repo's migration
+# files. Run as a one-off ECS task in the private subnets so it can reach RDS.
+# Kept separate from the app image so migrations don't depend on the app's
+# Dockerfile internals.
+#
+# Copy this into the SERVICE repo (e.g. as deploy/Dockerfile.migrations) — it
+# needs the migrations/ directory in its build context.
+FROM migrate/migrate:v4
+
+# golang-migrate's entrypoint is already `migrate`; CI passes the args
+# (-path /migrations -database $DATABASE_URL up) via the task definition command.
+COPY migrations/ /migrations
